@@ -10,6 +10,8 @@ import android.media.RingtoneManager
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.provider.Settings
+import android.view.WindowManager
 import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
 import com.medicinereminder.R
@@ -23,6 +25,9 @@ class ReminderReceiver : BroadcastReceiver() {
         private const val SNOOZE_ACTION = "com.medicinereminder.SNOOZE"
         private const val TAKE_ACTION = "com.medicinereminder.TAKE"
         private const val SKIP_ACTION = "com.medicinereminder.SKIP"
+        private const val EXTRA_MEDICINE_NAME = "medicineName"
+        private const val EXTRA_MEDICINE_ID = "medicineId"
+        private const val EXTRA_NOTIFICATION_ID = "notificationId"
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -36,6 +41,7 @@ class ReminderReceiver : BroadcastReceiver() {
         val soundEnabled = intent.getBooleanExtra("soundEnabled", true)
         val vibrationEnabled = intent.getBooleanExtra("vibrationEnabled", true)
         val currentSnoozeCount = intent.getIntExtra("currentSnoozeCount", 0)
+        val customSnoozeMinutes = intent.getIntExtra("customSnoozeMinutes", -1)
 
         when (intent.action) {
             SNOOZE_ACTION -> {
@@ -48,7 +54,7 @@ class ReminderReceiver : BroadcastReceiver() {
                         snoozeRequestCode,
                         isFullScreen,
                         maxSnoozeCount,
-                        snoozeInterval,
+                        if (customSnoozeMinutes > 0) customSnoozeMinutes else snoozeInterval,
                         soundEnabled,
                         vibrationEnabled,
                         currentSnoozeCount + 1
@@ -67,20 +73,20 @@ class ReminderReceiver : BroadcastReceiver() {
             else -> {
                 if (isFullScreen) {
                     showFullScreenAlert(context, intent)
-                } else {
-                    showNotification(
-                        context,
-                        medicineId,
-                        medicineName,
-                        notificationId,
-                        snoozeRequestCode,
-                        maxSnoozeCount,
-                        snoozeInterval,
-                        soundEnabled,
-                        vibrationEnabled,
-                        currentSnoozeCount
-                    )
                 }
+                
+                showNotification(
+                    context,
+                    medicineId,
+                    medicineName,
+                    notificationId,
+                    snoozeRequestCode,
+                    maxSnoozeCount,
+                    snoozeInterval,
+                    soundEnabled,
+                    vibrationEnabled,
+                    currentSnoozeCount
+                )
 
                 if (vibrationEnabled) {
                     vibrate(context)
@@ -107,11 +113,23 @@ class ReminderReceiver : BroadcastReceiver() {
     ) {
         val notificationManager = context.getSystemService<NotificationManager>()
 
-        val contentIntent = Intent(context, MainActivity::class.java)
-        val contentPendingIntent = PendingIntent.getActivity(
+        val fullScreenIntent = Intent(context, ReminderFullScreenActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("medicineId", medicineId)
+            putExtra("medicineName", medicineName)
+            putExtra("notificationId", notificationId)
+            putExtra("snoozeRequestCode", snoozeRequestCode)
+            putExtra("maxSnoozeCount", maxSnoozeCount)
+            putExtra("snoozeInterval", snoozeInterval)
+            putExtra("soundEnabled", soundEnabled)
+            putExtra("vibrationEnabled", vibrationEnabled)
+            putExtra("currentSnoozeCount", currentSnoozeCount)
+        }
+
+        val fullScreenPendingIntent = PendingIntent.getActivity(
             context,
-            0,
-            contentIntent,
+            notificationId,
+            fullScreenIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
@@ -169,7 +187,8 @@ class ReminderReceiver : BroadcastReceiver() {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setAutoCancel(true)
-            .setContentIntent(contentPendingIntent)
+            .setFullScreenIntent(fullScreenPendingIntent, true)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .addAction(
                 R.drawable.ic_snooze,
                 "Snooze",
@@ -193,8 +212,11 @@ class ReminderReceiver : BroadcastReceiver() {
     private fun showFullScreenAlert(context: Context, intent: Intent) {
         val fullScreenIntent = Intent(context, ReminderFullScreenActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            putExtras(intent)
+            putExtra(EXTRA_MEDICINE_NAME, intent.getStringExtra("medicineName"))
+            putExtra(EXTRA_MEDICINE_ID, intent.getStringExtra("medicineId"))
+            putExtra(EXTRA_NOTIFICATION_ID, intent.getIntExtra("notificationId", 0))
         }
+
         context.startActivity(fullScreenIntent)
     }
 
@@ -233,10 +255,20 @@ class ReminderReceiver : BroadcastReceiver() {
         )
 
         val triggerTime = System.currentTimeMillis() + (snoozeInterval * 60 * 1000)
-        alarmManager?.setAlarmClock(
-            AlarmManager.AlarmClockInfo(triggerTime, null),
-            pendingIntent
-        )
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (alarmManager?.canScheduleExactAlarms() == true) {
+                alarmManager.setAlarmClock(
+                    AlarmManager.AlarmClockInfo(triggerTime, null),
+                    pendingIntent
+                )
+            }
+        } else {
+            alarmManager?.setAlarmClock(
+                AlarmManager.AlarmClockInfo(triggerTime, null),
+                pendingIntent
+            )
+        }
     }
 
     private fun cancelNotification(context: Context, notificationId: Int) {
@@ -257,8 +289,19 @@ class ReminderReceiver : BroadcastReceiver() {
     }
 
     private fun playSound(context: Context) {
-        val notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-        val ringtone = RingtoneManager.getRingtone(context, notification)
-        ringtone.play()
+        try {
+            val notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            val ringtone = RingtoneManager.getRingtone(context, notification)
+            ringtone.play()
+        } catch (e: Exception) {
+            // Fallback to notification sound if alarm sound fails
+            try {
+                val notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                val ringtone = RingtoneManager.getRingtone(context, notification)
+                ringtone.play()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 } 

@@ -11,7 +11,7 @@ import com.medicinereminder.presentation.medicines.add.AddMedicineScreen
 import com.medicinereminder.presentation.medicines.details.MedicineDetailsScreen
 
 @Composable
-fun Navigation() {
+fun Navigation(@Suppress("UNUSED_PARAMETER") unusedMedicineId: String? = null) {
     val navController = rememberNavController()
 
     NavHost(
@@ -49,7 +49,7 @@ fun Navigation() {
                 onNavigateBack = {
                     navController.popBackStack()
                 },
-                onNavigateToEdit = { medicineId ->
+                onNavigateToEdit = {
                     // TODO: Navigate to edit screen when implemented
                     // Will be implemented in the next feature
                 }
