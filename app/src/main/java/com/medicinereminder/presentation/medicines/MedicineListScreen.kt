@@ -138,5 +138,13 @@ fun MedicineItem(
 
 private fun formatDateTime(dateTime: java.time.LocalDateTime?): String {
     if (dateTime == null) return "Not scheduled"
+    val now = java.time.LocalDateTime.now()
+    if (dateTime.isBefore(now)) {
+        val nextDateTime = dateTime.toLocalTime().atDate(now.toLocalDate())
+        if (nextDateTime.isBefore(now)) {
+            return nextDateTime.plusDays(1).format(DateTimeFormatter.ofPattern("MMM dd, HH:mm"))
+        }
+        return nextDateTime.format(DateTimeFormatter.ofPattern("MMM dd, HH:mm"))
+    }
     return dateTime.format(DateTimeFormatter.ofPattern("MMM dd, HH:mm"))
 } 

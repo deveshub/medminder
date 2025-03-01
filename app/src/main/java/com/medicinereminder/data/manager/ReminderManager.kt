@@ -69,6 +69,8 @@ class ReminderManager @Inject constructor(
             putExtra("snoozeInterval", medicine.reminderSettings.snoozeInterval)
             putExtra("soundEnabled", medicine.reminderSettings.soundEnabled)
             putExtra("vibrationEnabled", medicine.reminderSettings.vibrationEnabled)
+            putExtra("currentSnoozeCount", 0)
+            flags = Intent.FLAG_INCLUDE_STOPPED_PACKAGES
         }
 
         val pendingIntent = PendingIntent.getBroadcast(

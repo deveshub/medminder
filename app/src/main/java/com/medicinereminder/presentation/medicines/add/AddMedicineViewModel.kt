@@ -185,7 +185,7 @@ class AddMedicineViewModel @Inject constructor(
 
     private fun scheduleReminders(medicine: Medicine) {
         val now = LocalDateTime.now()
-        val times = medicine.schedule.times
+        val times = medicine.schedule.times.map { it.toLocalTime() }
         val startDate = medicine.startDate.toLocalDate()
         val endDate = medicine.endDate?.toLocalDate()
 
@@ -193,12 +193,18 @@ class AddMedicineViewModel @Inject constructor(
         times.forEach { time ->
             var reminderDateTime = LocalDateTime.of(
                 startDate,
-                time.toLocalTime()
+                time
             )
 
             // If the reminder time is in the past, schedule it for the next occurrence
             if (reminderDateTime.isBefore(now)) {
-                reminderDateTime = reminderDateTime.plusDays(1)
+                reminderDateTime = LocalDateTime.of(
+                    now.toLocalDate(),
+                    time
+                )
+                if (reminderDateTime.isBefore(now)) {
+                    reminderDateTime = reminderDateTime.plusDays(1)
+                }
             }
 
             // Check if the reminder is within the end date (if set)
@@ -208,7 +214,12 @@ class AddMedicineViewModel @Inject constructor(
                     val dayOfWeek = reminderDateTime.dayOfWeek
                     val selectedDays = medicine.schedule.daysOfWeek
                     if (selectedDays?.any { it.ordinal + 1 == dayOfWeek.value } == true) {
-                        reminderManager.scheduleReminder(medicine, reminderDateTime)
+                        // Find next occurrence on a selected day
+                        var nextDateTime = reminderDateTime
+                        while (!selectedDays.any { it.ordinal + 1 == nextDateTime.dayOfWeek.value }) {
+                            nextDateTime = nextDateTime.plusDays(1)
+                        }
+                        reminderManager.scheduleReminder(medicine, nextDateTime)
                     }
                 } else {
                     // For daily frequency, schedule all reminders
