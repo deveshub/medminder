@@ -1,59 +1,58 @@
 package com.medicinereminder.presentation.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.medicinereminder.presentation.medicines.MedicineListScreen
+import com.medicinereminder.presentation.medicines.list.MedicineListScreen
 import com.medicinereminder.presentation.medicines.add.AddMedicineScreen
 import com.medicinereminder.presentation.medicines.details.MedicineDetailsScreen
+import com.medicinereminder.presentation.settings.SettingsScreen
 
 @Composable
-fun Navigation(@Suppress("UNUSED_PARAMETER") unusedMedicineId: String? = null) {
-    val navController = rememberNavController()
-
+fun Navigation(
+    navController: NavHostController,
+    startDestination: String = Screen.MedicineList.route
+) {
     NavHost(
         navController = navController,
-        startDestination = Screen.MedicineList.route
+        startDestination = startDestination
     ) {
         composable(route = Screen.MedicineList.route) {
             MedicineListScreen(
-                onNavigateToAddMedicine = {
-                    navController.navigate(Screen.AddMedicine.route)
+                onNavigateToAdd = { navController.navigate(Screen.AddMedicine.route) },
+                onNavigateToDetails = { medicineId -> 
+                    navController.navigate("medicine_details/$medicineId")
                 },
-                onNavigateToMedicineDetails = { medicineId ->
-                    navController.navigate(Screen.MedicineDetails.route + "/$medicineId")
-                }
+                onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
             )
         }
 
         composable(route = Screen.AddMedicine.route) {
             AddMedicineScreen(
-                onNavigateBack = {
-                    navController.popBackStack()
-                }
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 
         composable(
-            route = Screen.MedicineDetails.route + "/{medicineId}",
+            route = "medicine_details/{medicineId}",
             arguments = listOf(
-                navArgument("medicineId") {
-                    type = NavType.StringType
-                }
+                navArgument("medicineId") { type = NavType.StringType }
             )
-        ) {
+        ) { entry ->
+            val id = entry.arguments?.getString("medicineId") ?: ""
             MedicineDetailsScreen(
-                onNavigateBack = {
-                    navController.popBackStack()
-                },
-                onNavigateToEdit = {
-                    // TODO: Navigate to edit screen when implemented
-                    // Will be implemented in the next feature
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToEdit = { medicineId -> 
+                    navController.navigate(Screen.AddMedicine.route)
                 }
             )
+        }
+
+        composable(route = Screen.Settings.route) {
+            SettingsScreen()
         }
     }
 }
