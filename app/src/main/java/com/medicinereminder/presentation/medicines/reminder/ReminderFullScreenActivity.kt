@@ -38,11 +38,8 @@ class ReminderFullScreenActivity : ComponentActivity() {
         val medicineName = intent.getStringExtra("medicineName") ?: return finish()
         val notificationId = intent.getIntExtra("notificationId", 0)
         val snoozeRequestCode = intent.getIntExtra("snoozeRequestCode", 0)
-        val maxSnoozeCount = intent.getIntExtra("maxSnoozeCount", 3)
-        val snoozeInterval = intent.getIntExtra("snoozeInterval", 5)
         val soundEnabled = intent.getBooleanExtra("soundEnabled", true)
         val vibrationEnabled = intent.getBooleanExtra("vibrationEnabled", true)
-        val currentSnoozeCount = intent.getIntExtra("currentSnoozeCount", 0)
 
         setContent {
             MedicineReminderTheme {
@@ -50,23 +47,18 @@ class ReminderFullScreenActivity : ComponentActivity() {
                     medicineName = medicineName,
                     onDismiss = { finish() },
                     onSnooze = { minutes ->
-                        if (currentSnoozeCount < maxSnoozeCount) {
-                            val intent = Intent(this, ReminderReceiver::class.java).apply {
-                                action = "com.medicinereminder.SNOOZE"
-                                putExtra("medicineId", medicineId)
-                                putExtra("medicineName", medicineName)
-                                putExtra("notificationId", notificationId)
-                                putExtra("snoozeRequestCode", snoozeRequestCode)
-                                putExtra("isFullScreen", true)
-                                putExtra("maxSnoozeCount", maxSnoozeCount)
-                                putExtra("snoozeInterval", snoozeInterval)
-                                putExtra("soundEnabled", soundEnabled)
-                                putExtra("vibrationEnabled", vibrationEnabled)
-                                putExtra("currentSnoozeCount", currentSnoozeCount)
-                                putExtra("customSnoozeMinutes", minutes)
-                            }
-                            sendBroadcast(intent)
+                        val intent = Intent(this, ReminderReceiver::class.java).apply {
+                            action = "com.medicinereminder.SNOOZE"
+                            putExtra("medicineId", medicineId)
+                            putExtra("medicineName", medicineName)
+                            putExtra("notificationId", notificationId)
+                            putExtra("snoozeRequestCode", snoozeRequestCode)
+                            putExtra("isFullScreen", true)
+                            putExtra("soundEnabled", soundEnabled)
+                            putExtra("vibrationEnabled", vibrationEnabled)
+                            putExtra("customSnoozeMinutes", minutes)
                         }
+                        sendBroadcast(intent)
                         finish()
                     },
                     onTake = {
@@ -77,11 +69,8 @@ class ReminderFullScreenActivity : ComponentActivity() {
                             putExtra("notificationId", notificationId)
                             putExtra("snoozeRequestCode", snoozeRequestCode)
                             putExtra("isFullScreen", true)
-                            putExtra("maxSnoozeCount", maxSnoozeCount)
-                            putExtra("snoozeInterval", snoozeInterval)
                             putExtra("soundEnabled", soundEnabled)
                             putExtra("vibrationEnabled", vibrationEnabled)
-                            putExtra("currentSnoozeCount", currentSnoozeCount)
                         }
                         sendBroadcast(intent)
                         finish()
@@ -94,11 +83,8 @@ class ReminderFullScreenActivity : ComponentActivity() {
                             putExtra("notificationId", notificationId)
                             putExtra("snoozeRequestCode", snoozeRequestCode)
                             putExtra("isFullScreen", true)
-                            putExtra("maxSnoozeCount", maxSnoozeCount)
-                            putExtra("snoozeInterval", snoozeInterval)
                             putExtra("soundEnabled", soundEnabled)
                             putExtra("vibrationEnabled", vibrationEnabled)
-                            putExtra("currentSnoozeCount", currentSnoozeCount)
                         }
                         sendBroadcast(intent)
                         finish()
@@ -151,107 +137,134 @@ fun ReminderDialog(
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = "Medicine Reminder",
-                        style = MaterialTheme.typography.headlineMedium,
-                        textAlign = TextAlign.Center
-                    )
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    Text(
-                        text = "Time to take $medicineName",
+                        text = "Time to take",
                         style = MaterialTheme.typography.titleLarge,
                         textAlign = TextAlign.Center
                     )
-                    
-                    Spacer(modifier = Modifier.height(32.dp))
-                    
+                    Text(
+                        text = medicineName,
+                        style = MaterialTheme.typography.headlineMedium,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(vertical = 16.dp)
+                    )
+
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        Box {
-                            Button(
-                                onClick = { showSnoozeOptions = true },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.secondary
-                                )
-                            ) {
-                                Text("Snooze")
-                            }
-                            DropdownMenu(
-                                expanded = showSnoozeOptions,
-                                onDismissRequest = { showSnoozeOptions = false }
-                            ) {
-                                snoozeOptions.forEach { (minutes, label) ->
-                                    DropdownMenuItem(
-                                        text = { Text(label) },
-                                        onClick = {
-                                            showSnoozeOptions = false
-                                            onSnooze(minutes)
-                                        }
-                                    )
-                                }
-                                DropdownMenuItem(
-                                    text = { Text("Custom...") },
-                                    onClick = {
-                                        showSnoozeOptions = false
-                                        showCustomSnoozeDialog = true
-                                    }
-                                )
-                            }
-                        }
-                        
                         Button(
-                            onClick = onTake,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary
-                            )
+                            onClick = { showSnoozeOptions = true }
+                        ) {
+                            Text("Snooze")
+                        }
+                        Button(
+                            onClick = onTake
                         ) {
                             Text("Take")
                         }
-                        
                         Button(
-                            onClick = onSkip,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.error
-                            )
+                            onClick = onSkip
                         ) {
                             Text("Skip")
                         }
                     }
                 }
 
-                if (showCustomSnoozeDialog) {
-                    AlertDialog(
-                        onDismissRequest = { showCustomSnoozeDialog = false },
-                        title = { Text("Custom Snooze Time") },
-                        text = {
-                            OutlinedTextField(
-                                value = customSnoozeMinutes,
-                                onValueChange = { customSnoozeMinutes = it.filter { char -> char.isDigit() } },
-                                label = { Text("Minutes") },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                            )
-                        },
-                        confirmButton = {
-                            TextButton(
-                                onClick = {
-                                    showCustomSnoozeDialog = false
-                                    if (customSnoozeMinutes.isNotEmpty()) {
-                                        onSnooze(customSnoozeMinutes.toInt())
+                if (showSnoozeOptions) {
+                    Dialog(
+                        onDismissRequest = { showSnoozeOptions = false }
+                    ) {
+                        Surface(
+                            modifier = Modifier.padding(16.dp),
+                            shape = MaterialTheme.shapes.medium
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp)
+                            ) {
+                                Text(
+                                    text = "Snooze for",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.padding(bottom = 16.dp)
+                                )
+                                snoozeOptions.forEach { (minutes, label) ->
+                                    Button(
+                                        onClick = {
+                                            onSnooze(minutes)
+                                            showSnoozeOptions = false
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 4.dp)
+                                    ) {
+                                        Text(label)
                                     }
                                 }
-                            ) {
-                                Text("OK")
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { showCustomSnoozeDialog = false }) {
-                                Text("Cancel")
+                                Button(
+                                    onClick = {
+                                        showSnoozeOptions = false
+                                        showCustomSnoozeDialog = true
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp)
+                                ) {
+                                    Text("Custom")
+                                }
                             }
                         }
-                    )
+                    }
+                }
+
+                if (showCustomSnoozeDialog) {
+                    Dialog(
+                        onDismissRequest = { showCustomSnoozeDialog = false }
+                    ) {
+                        Surface(
+                            modifier = Modifier.padding(16.dp),
+                            shape = MaterialTheme.shapes.medium
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp)
+                            ) {
+                                Text(
+                                    text = "Enter minutes",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.padding(bottom = 16.dp)
+                                )
+                                OutlinedTextField(
+                                    value = customSnoozeMinutes,
+                                    onValueChange = { customSnoozeMinutes = it },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp)
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.End
+                                ) {
+                                    TextButton(
+                                        onClick = { showCustomSnoozeDialog = false }
+                                    ) {
+                                        Text("Cancel")
+                                    }
+                                    TextButton(
+                                        onClick = {
+                                            val minutes = customSnoozeMinutes.toIntOrNull()
+                                            if (minutes != null && minutes > 0) {
+                                                onSnooze(minutes)
+                                                showCustomSnoozeDialog = false
+                                            }
+                                        }
+                                    ) {
+                                        Text("OK")
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

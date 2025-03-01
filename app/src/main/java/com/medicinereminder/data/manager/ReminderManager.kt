@@ -65,8 +65,6 @@ class ReminderManager @Inject constructor(
             putExtra("notificationId", notificationId)
             putExtra("snoozeRequestCode", snoozeRequestCode)
             putExtra("isFullScreen", medicine.reminderSettings.fullScreenAlert)
-            putExtra("maxSnoozeCount", medicine.reminderSettings.maxSnoozeCount)
-            putExtra("snoozeInterval", medicine.reminderSettings.snoozeInterval)
             putExtra("soundEnabled", medicine.reminderSettings.soundEnabled)
             putExtra("vibrationEnabled", medicine.reminderSettings.vibrationEnabled)
             putExtra("currentSnoozeCount", 0)

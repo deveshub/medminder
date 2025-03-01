@@ -19,9 +19,12 @@ import com.medicinereminder.R
 import com.medicinereminder.data.worker.UpdateMedicineStatusWorker
 import com.medicinereminder.domain.model.MedicineStatus
 import com.medicinereminder.domain.repository.MedicineRepository
+import com.medicinereminder.domain.repository.SettingsRepository
 import com.medicinereminder.presentation.MainActivity
 import com.medicinereminder.presentation.medicines.reminder.ReminderFullScreenActivity
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -31,6 +34,9 @@ class ReminderReceiver : BroadcastReceiver() {
 
     @Inject
     lateinit var medicineRepository: MedicineRepository
+
+    @Inject
+    lateinit var settingsRepository: SettingsRepository
 
     companion object {
         private const val CHANNEL_ID = "medicine_reminders"
@@ -48,88 +54,67 @@ class ReminderReceiver : BroadcastReceiver() {
         val medicineName = intent.getStringExtra("medicineName") ?: return
         val notificationId = intent.getIntExtra("notificationId", 0)
         val snoozeRequestCode = intent.getIntExtra("snoozeRequestCode", 0)
-        val isFullScreen = intent.getBooleanExtra("isFullScreen", false)
-        val maxSnoozeCount = intent.getIntExtra("maxSnoozeCount", 3)
-        val snoozeInterval = intent.getIntExtra("snoozeInterval", 5)
+        val isFullScreen = intent.getBooleanExtra("isFullScreen", true)
         val soundEnabled = intent.getBooleanExtra("soundEnabled", true)
         val vibrationEnabled = intent.getBooleanExtra("vibrationEnabled", true)
-        val currentSnoozeCount = intent.getIntExtra("currentSnoozeCount", 0)
         val customSnoozeMinutes = intent.getIntExtra("customSnoozeMinutes", -1)
 
         android.util.Log.d("ReminderReceiver", "Received action: ${intent.action} for medicine: $medicineId")
 
         when (intent.action) {
             SNOOZE_ACTION -> {
-                android.util.Log.d("ReminderReceiver", "Processing SNOOZE action")
-                if (currentSnoozeCount < maxSnoozeCount) {
-                    scheduleStatusUpdate(context, medicineId, MedicineStatus.SNOOZED)
-                    scheduleSnooze(
-                        context,
-                        medicineId,
-                        medicineName,
-                        notificationId,
-                        snoozeRequestCode,
-                        isFullScreen,
-                        maxSnoozeCount,
-                        if (customSnoozeMinutes > 0) customSnoozeMinutes else snoozeInterval,
-                        soundEnabled,
-                        vibrationEnabled,
-                        currentSnoozeCount + 1
-                    )
-                    cancelNotification(context, notificationId)
+                val snoozeInterval = if (customSnoozeMinutes > 0) {
+                    customSnoozeMinutes
                 } else {
-                    cancelNotification(context, notificationId)
+                    runBlocking {
+                        settingsRepository.getDefaultSnoozeInterval().first()
+                    }
                 }
+                scheduleSnooze(
+                    context = context,
+                    medicineId = medicineId,
+                    medicineName = medicineName,
+                    notificationId = notificationId,
+                    snoozeRequestCode = snoozeRequestCode,
+                    isFullScreen = isFullScreen,
+                    soundEnabled = soundEnabled,
+                    vibrationEnabled = vibrationEnabled,
+                    snoozeInterval = snoozeInterval
+                )
+                scheduleStatusUpdate(context, medicineId, MedicineStatus.SNOOZED)
+                cancelNotification(context, notificationId)
             }
             TAKE_ACTION -> {
-                android.util.Log.d("ReminderReceiver", "Processing TAKE action")
                 scheduleStatusUpdate(context, medicineId, MedicineStatus.TAKEN)
                 cancelNotification(context, notificationId)
             }
             SKIP_ACTION -> {
-                android.util.Log.d("ReminderReceiver", "Processing SKIP action")
                 scheduleStatusUpdate(context, medicineId, MedicineStatus.SKIPPED)
                 cancelNotification(context, notificationId)
             }
             else -> {
-                if (isFullScreen) {
-                    showFullScreenAlert(context, intent)
-                }
-                
                 showNotification(
-                    context,
-                    medicineId,
-                    medicineName,
-                    notificationId,
-                    snoozeRequestCode,
-                    maxSnoozeCount,
-                    snoozeInterval,
-                    soundEnabled,
-                    vibrationEnabled,
-                    currentSnoozeCount
+                    context = context,
+                    medicineId = medicineId,
+                    medicineName = medicineName,
+                    notificationId = notificationId,
+                    snoozeRequestCode = snoozeRequestCode,
+                    isFullScreen = isFullScreen,
+                    soundEnabled = soundEnabled,
+                    vibrationEnabled = vibrationEnabled
                 )
-
-                if (vibrationEnabled) {
-                    vibrate(context)
-                }
-
-                if (soundEnabled) {
-                    playSound(context)
-                }
             }
         }
     }
 
     private fun scheduleStatusUpdate(context: Context, medicineId: String, status: MedicineStatus) {
-        android.util.Log.d("ReminderReceiver", "Scheduling status update for medicine: $medicineId to status: $status")
-        
-        val workData = workDataOf(
-            "medicineId" to medicineId,
-            "status" to status.name
-        )
-
-        val updateStatusWork = OneTimeWorkRequestBuilder<UpdateMedicineStatusWorker>()
-            .setInputData(workData)
+        val workRequest = OneTimeWorkRequestBuilder<UpdateMedicineStatusWorker>()
+            .setInputData(
+                workDataOf(
+                    "medicineId" to medicineId,
+                    "status" to status.name
+                )
+            )
             .setBackoffCriteria(
                 BackoffPolicy.LINEAR,
                 WorkRequest.MIN_BACKOFF_MILLIS,
@@ -137,23 +122,12 @@ class ReminderReceiver : BroadcastReceiver() {
             )
             .build()
 
-        android.util.Log.d("ReminderReceiver", "Created work request with id: ${updateStatusWork.id}")
-
         WorkManager.getInstance(context)
             .enqueueUniqueWork(
-                UPDATE_STATUS_WORK + "_" + medicineId,
-                ExistingWorkPolicy.REPLACE,
-                updateStatusWork
+                "$UPDATE_STATUS_WORK-${medicineId}-${UUID.randomUUID()}",
+                ExistingWorkPolicy.APPEND_OR_REPLACE,
+                workRequest
             )
-
-        android.util.Log.d("ReminderReceiver", "Enqueued work request")
-
-        // Observe the work status
-        WorkManager.getInstance(context)
-            .getWorkInfoByIdLiveData(updateStatusWork.id)
-            .observeForever { workInfo ->
-                android.util.Log.d("ReminderReceiver", "Work status update - State: ${workInfo?.state}, Output Data: ${workInfo?.outputData}")
-            }
     }
 
     private fun showNotification(
@@ -162,25 +136,32 @@ class ReminderReceiver : BroadcastReceiver() {
         medicineName: String,
         notificationId: Int,
         snoozeRequestCode: Int,
-        maxSnoozeCount: Int,
-        snoozeInterval: Int,
+        isFullScreen: Boolean,
         soundEnabled: Boolean,
-        vibrationEnabled: Boolean,
-        currentSnoozeCount: Int
+        vibrationEnabled: Boolean
     ) {
         val notificationManager = context.getSystemService<NotificationManager>()
 
+        if (isFullScreen) {
+            showFullScreenAlert(context, Intent().apply {
+                putExtra("medicineId", medicineId)
+                putExtra("medicineName", medicineName)
+                putExtra("notificationId", notificationId)
+                putExtra("snoozeRequestCode", snoozeRequestCode)
+                putExtra("soundEnabled", soundEnabled)
+                putExtra("vibrationEnabled", vibrationEnabled)
+            })
+            return
+        }
+
         val fullScreenIntent = Intent(context, ReminderFullScreenActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
             putExtra("medicineId", medicineId)
             putExtra("medicineName", medicineName)
             putExtra("notificationId", notificationId)
             putExtra("snoozeRequestCode", snoozeRequestCode)
-            putExtra("maxSnoozeCount", maxSnoozeCount)
-            putExtra("snoozeInterval", snoozeInterval)
             putExtra("soundEnabled", soundEnabled)
             putExtra("vibrationEnabled", vibrationEnabled)
-            putExtra("currentSnoozeCount", currentSnoozeCount)
         }
 
         val fullScreenPendingIntent = PendingIntent.getActivity(
@@ -197,11 +178,8 @@ class ReminderReceiver : BroadcastReceiver() {
             putExtra("notificationId", notificationId)
             putExtra("snoozeRequestCode", snoozeRequestCode)
             putExtra("isFullScreen", false)
-            putExtra("maxSnoozeCount", maxSnoozeCount)
-            putExtra("snoozeInterval", snoozeInterval)
             putExtra("soundEnabled", soundEnabled)
             putExtra("vibrationEnabled", vibrationEnabled)
-            putExtra("currentSnoozeCount", currentSnoozeCount)
         }
 
         val snoozePendingIntent = PendingIntent.getBroadcast(
@@ -218,11 +196,8 @@ class ReminderReceiver : BroadcastReceiver() {
             putExtra("notificationId", notificationId)
             putExtra("snoozeRequestCode", snoozeRequestCode)
             putExtra("isFullScreen", false)
-            putExtra("maxSnoozeCount", maxSnoozeCount)
-            putExtra("snoozeInterval", snoozeInterval)
             putExtra("soundEnabled", soundEnabled)
             putExtra("vibrationEnabled", vibrationEnabled)
-            putExtra("currentSnoozeCount", currentSnoozeCount)
         }
 
         val takePendingIntent = PendingIntent.getBroadcast(
@@ -239,11 +214,8 @@ class ReminderReceiver : BroadcastReceiver() {
             putExtra("notificationId", notificationId)
             putExtra("snoozeRequestCode", snoozeRequestCode)
             putExtra("isFullScreen", false)
-            putExtra("maxSnoozeCount", maxSnoozeCount)
-            putExtra("snoozeInterval", snoozeInterval)
             putExtra("soundEnabled", soundEnabled)
             putExtra("vibrationEnabled", vibrationEnabled)
-            putExtra("currentSnoozeCount", currentSnoozeCount)
         }
 
         val skipPendingIntent = PendingIntent.getBroadcast(
@@ -300,11 +272,9 @@ class ReminderReceiver : BroadcastReceiver() {
         notificationId: Int,
         snoozeRequestCode: Int,
         isFullScreen: Boolean,
-        maxSnoozeCount: Int,
-        snoozeInterval: Int,
         soundEnabled: Boolean,
         vibrationEnabled: Boolean,
-        currentSnoozeCount: Int
+        snoozeInterval: Int
     ) {
         val alarmManager = context.getSystemService<AlarmManager>()
         val intent = Intent(context, ReminderReceiver::class.java).apply {
@@ -313,11 +283,8 @@ class ReminderReceiver : BroadcastReceiver() {
             putExtra("notificationId", notificationId)
             putExtra("snoozeRequestCode", snoozeRequestCode)
             putExtra("isFullScreen", isFullScreen)
-            putExtra("maxSnoozeCount", maxSnoozeCount)
-            putExtra("snoozeInterval", snoozeInterval)
             putExtra("soundEnabled", soundEnabled)
             putExtra("vibrationEnabled", vibrationEnabled)
-            putExtra("currentSnoozeCount", currentSnoozeCount)
         }
 
         val pendingIntent = PendingIntent.getBroadcast(
@@ -347,34 +314,5 @@ class ReminderReceiver : BroadcastReceiver() {
     private fun cancelNotification(context: Context, notificationId: Int) {
         val notificationManager = context.getSystemService<NotificationManager>()
         notificationManager?.cancel(notificationId)
-    }
-
-    private fun vibrate(context: Context) {
-        val vibrator = context.getSystemService<Vibrator>()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibrator?.vibrate(
-                VibrationEffect.createOneShot(1000, VibrationEffect.DEFAULT_AMPLITUDE)
-            )
-        } else {
-            @Suppress("DEPRECATION")
-            vibrator?.vibrate(1000)
-        }
-    }
-
-    private fun playSound(context: Context) {
-        try {
-            val notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-            val ringtone = RingtoneManager.getRingtone(context, notification)
-            ringtone.play()
-        } catch (e: Exception) {
-            // Fallback to notification sound if alarm sound fails
-            try {
-                val notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-                val ringtone = RingtoneManager.getRingtone(context, notification)
-                ringtone.play()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
     }
 } 
