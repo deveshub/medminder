@@ -19,7 +19,5 @@ sealed class AddMedicineEvent {
     data class OnSoundEnabledChange(val enabled: Boolean) : AddMedicineEvent()
     data class OnVibrationEnabledChange(val enabled: Boolean) : AddMedicineEvent()
     data class OnFullScreenAlertChange(val enabled: Boolean) : AddMedicineEvent()
-    data class OnSnoozeIntervalChange(val interval: Int) : AddMedicineEvent()
-    data class OnMaxSnoozeCountChange(val count: Int) : AddMedicineEvent()
     object OnSave : AddMedicineEvent()
 } 

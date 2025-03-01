@@ -20,9 +20,7 @@ data class AddMedicineState(
     val isReminderEnabled: Boolean = true,
     val isSoundEnabled: Boolean = true,
     val isVibrationEnabled: Boolean = true,
-    val isFullScreenAlert: Boolean = false,
-    val snoozeInterval: Int = 5,
-    val maxSnoozeCount: Int = 3,
+    val isFullScreenAlert: Boolean = true,
     val isLoading: Boolean = false,
     val error: String? = null,
     val isSuccess: Boolean = false

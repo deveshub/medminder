@@ -97,12 +97,6 @@ class AddMedicineViewModel @Inject constructor(
             is AddMedicineEvent.OnFullScreenAlertChange -> {
                 _state.update { it.copy(isFullScreenAlert = event.enabled) }
             }
-            is AddMedicineEvent.OnSnoozeIntervalChange -> {
-                _state.update { it.copy(snoozeInterval = event.interval) }
-            }
-            is AddMedicineEvent.OnMaxSnoozeCountChange -> {
-                _state.update { it.copy(maxSnoozeCount = event.count) }
-            }
             AddMedicineEvent.OnSave -> saveMedicine()
         }
     }
@@ -158,9 +152,7 @@ class AddMedicineViewModel @Inject constructor(
                 enabled = currentState.isReminderEnabled,
                 soundEnabled = currentState.isSoundEnabled,
                 vibrationEnabled = currentState.isVibrationEnabled,
-                fullScreenAlert = currentState.isFullScreenAlert,
-                snoozeInterval = currentState.snoozeInterval,
-                maxSnoozeCount = currentState.maxSnoozeCount
+                fullScreenAlert = currentState.isFullScreenAlert
             )
         )
 

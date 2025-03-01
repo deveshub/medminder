@@ -181,14 +181,6 @@ fun MedicineDetailsScreen(
                                     "Full Screen Alert",
                                     if (medicine.reminderSettings.fullScreenAlert) "On" else "Off"
                                 )
-                                DetailRow(
-                                    "Snooze Interval",
-                                    "${medicine.reminderSettings.snoozeInterval} minutes"
-                                )
-                                DetailRow(
-                                    "Max Snooze Count",
-                                    "${medicine.reminderSettings.maxSnoozeCount} times"
-                                )
                             }
                         }
                     }
