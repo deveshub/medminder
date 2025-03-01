@@ -7,6 +7,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.medicinereminder.presentation.medicines.MedicineListScreen
+import com.medicinereminder.presentation.medicines.add.AddMedicineScreen
 
 @Composable
 fun Navigation(navController: NavHostController) {
@@ -26,7 +27,11 @@ fun Navigation(navController: NavHostController) {
         }
 
         composable(route = Screen.AddMedicine.route) {
-            // TODO: Implement AddMedicineScreen
+            AddMedicineScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
         }
 
         composable(
