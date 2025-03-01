@@ -12,4 +12,11 @@ buildscript {
 
 tasks.register("clean", Delete::class) {
     delete(rootProject.buildDir)
+}
+
+// Add root-level task for migration tests
+tasks.register("testMigrations") {
+    dependsOn(":app:testMigrations")
+    description = "Run database migration tests (delegates to :app:testMigrations)"
+    group = "verification"
 } 

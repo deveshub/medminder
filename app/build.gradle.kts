@@ -106,6 +106,10 @@ dependencies {
     // Gson
     implementation("com.google.code.gson:gson:2.10.1")
 
+    // DataStore
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
+    implementation("androidx.datastore:datastore-preferences-core:1.0.0")
+
     // Testing
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.mockito:mockito-core:5.5.0")
@@ -114,6 +118,29 @@ dependencies {
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
     androidTestImplementation(platform("androidx.compose:compose-bom:$composeBomVersion"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    
+    // Room Testing - Add these lines
+    androidTestImplementation("androidx.room:room-testing:$roomVersion")
+    androidTestImplementation("androidx.arch.core:core-testing:2.2.0")
+    
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+}
+
+// Add a task to run only migration tests
+tasks.register("testMigrations") {
+    dependsOn("installDebugAndroidTest")
+    doLast {
+        exec {
+            workingDir(projectDir.parentFile)
+            commandLine(
+                "adb", "shell", 
+                "am", "instrument", "-w", "-e", "class", 
+                "com.medicinereminder.data.local.MigrationTest", 
+                "${android.defaultConfig.applicationId}.test/androidx.test.runner.AndroidJUnitRunner"
+            )
+        }
+    }
+    group = "verification"
+    description = "Run database migration tests"
 } 

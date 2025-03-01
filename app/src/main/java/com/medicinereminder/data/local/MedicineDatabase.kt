@@ -8,7 +8,7 @@ import com.medicinereminder.data.local.entity.MedicineEntity
 
 @Database(
     entities = [MedicineEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -17,5 +17,6 @@ abstract class MedicineDatabase : RoomDatabase() {
 
     companion object {
         const val DATABASE_NAME = "medicine_db"
+        const val DB_VERSION = 3
     }
 } 
