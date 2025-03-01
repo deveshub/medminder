@@ -27,4 +27,26 @@
 # Keep Room entities
 -keep class * extends androidx.room.RoomDatabase
 -keep @androidx.room.Entity class *
--keep @androidx.room.Dao class * 
+-keep @androidx.room.Dao class *
+
+# Gson specific rules
+-keepattributes Signature
+-keepattributes *Annotation*
+-dontwarn sun.misc.**
+-keep class com.google.gson.** { *; }
+-keep class * extends com.google.gson.TypeAdapter
+-keep class * implements com.google.gson.TypeAdapterFactory
+-keep class * implements com.google.gson.JsonSerializer
+-keep class * implements com.google.gson.JsonDeserializer
+
+# Keep generic signatures and annotations for Gson
+-keepclassmembers,allowobfuscation class * {
+  @com.google.gson.annotations.SerializedName <fields>;
+}
+
+# Keep the generic signatures of TypeToken and its subclasses
+-keep,allowobfuscation class com.google.gson.reflect.TypeToken
+-keep,allowobfuscation class * extends com.google.gson.reflect.TypeToken
+
+# Keep the LocalDateTime class as it's used in JSON serialization
+-keep class java.time.** { *; } 

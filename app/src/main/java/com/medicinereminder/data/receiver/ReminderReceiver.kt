@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.media.Ringtone
 import android.media.RingtoneManager
 import android.os.Build
 import android.os.VibrationEffect
@@ -41,6 +42,9 @@ class ReminderReceiver : BroadcastReceiver() {
         private const val EXTRA_MEDICINE_ID = "medicineId"
         private const val EXTRA_NOTIFICATION_ID = "notificationId"
         private const val UPDATE_STATUS_WORK = "update_status_work"
+        
+        // Store a reference to the active ringtone
+        private var activeRingtone: Ringtone? = null
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -61,6 +65,8 @@ class ReminderReceiver : BroadcastReceiver() {
         when (intent.action) {
             SNOOZE_ACTION -> {
                 android.util.Log.d("ReminderReceiver", "Processing SNOOZE action")
+                // Stop sound when snooze is pressed
+                stopSound()
                 if (currentSnoozeCount < maxSnoozeCount) {
                     scheduleStatusUpdate(context, medicineId, MedicineStatus.SNOOZED)
                     scheduleSnooze(
@@ -83,11 +89,15 @@ class ReminderReceiver : BroadcastReceiver() {
             }
             TAKE_ACTION -> {
                 android.util.Log.d("ReminderReceiver", "Processing TAKE action")
+                // Stop sound when take is pressed
+                stopSound()
                 scheduleStatusUpdate(context, medicineId, MedicineStatus.TAKEN)
                 cancelNotification(context, notificationId)
             }
             SKIP_ACTION -> {
                 android.util.Log.d("ReminderReceiver", "Processing SKIP action")
+                // Stop sound when skip is pressed
+                stopSound()
                 scheduleStatusUpdate(context, medicineId, MedicineStatus.SKIPPED)
                 cancelNotification(context, notificationId)
             }
@@ -363,18 +373,34 @@ class ReminderReceiver : BroadcastReceiver() {
 
     private fun playSound(context: Context) {
         try {
+            // Stop any currently playing ringtone
+            stopSound()
+            
             val notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
             val ringtone = RingtoneManager.getRingtone(context, notification)
+            activeRingtone = ringtone
             ringtone.play()
         } catch (e: Exception) {
             // Fallback to notification sound if alarm sound fails
             try {
                 val notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
                 val ringtone = RingtoneManager.getRingtone(context, notification)
+                activeRingtone = ringtone
                 ringtone.play()
             } catch (e: Exception) {
                 e.printStackTrace()
             }
+        }
+    }
+    
+    private fun stopSound() {
+        try {
+            if (activeRingtone?.isPlaying == true) {
+                activeRingtone?.stop()
+            }
+            activeRingtone = null
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 } 
