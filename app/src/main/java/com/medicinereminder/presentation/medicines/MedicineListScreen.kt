@@ -10,14 +10,13 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.medicinereminder.domain.model.Medicine
 import com.medicinereminder.domain.model.MedicineStatus
@@ -67,7 +66,10 @@ fun MedicineListScreen(
                     items(state.medicines) { medicine ->
                         MedicineCard(
                             medicine = medicine,
-                            onMedicineClick = { onNavigateToMedicineDetails(medicine.id.toString()) }
+                            onMedicineClick = { onNavigateToMedicineDetails(medicine.id.toString()) },
+                            onStatusChange = { newStatus -> 
+                                viewModel.updateMedicineStatus(medicine.id, newStatus)
+                            }
                         )
                     }
                 }
@@ -90,8 +92,64 @@ fun MedicineListScreen(
 @Composable
 fun MedicineCard(
     medicine: Medicine,
-    onMedicineClick: () -> Unit
+    onMedicineClick: () -> Unit,
+    onStatusChange: (MedicineStatus) -> Unit
 ) {
+    var showStatusDialog by remember { mutableStateOf(false) }
+
+    if (showStatusDialog) {
+        Dialog(onDismissRequest = { showStatusDialog = false }) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Update Status",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    MedicineStatus.values().forEach { status ->
+                        val color = when (status) {
+                            MedicineStatus.TAKEN -> Color(0xFF4CAF50)
+                            MedicineStatus.SNOOZED -> Color(0xFFFFA000)
+                            MedicineStatus.SKIPPED -> Color(0xFFF44336)
+                            MedicineStatus.PENDING -> MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                        val icon = when (status) {
+                            MedicineStatus.TAKEN -> Icons.Default.Check
+                            MedicineStatus.SNOOZED -> Icons.Default.Notifications
+                            MedicineStatus.SKIPPED -> Icons.Default.Close
+                            MedicineStatus.PENDING -> Icons.Default.Warning
+                        }
+                        FilledTonalButton(
+                            onClick = {
+                                onStatusChange(status)
+                                showStatusDialog = false
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = status.name,
+                                    tint = color
+                                )
+                                Text(text = status.name)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     Card(
         onClick = onMedicineClick,
         modifier = Modifier.fillMaxWidth()
@@ -122,9 +180,14 @@ fun MedicineCard(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Text(
+                        text = "Next: ",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     medicine.schedule.times.firstOrNull()?.let { time ->
                         Text(
-                            text = time.format(DateTimeFormatter.ofPattern("HH:mm")),
+                            text = time.format(DateTimeFormatter.ofPattern("MMM dd, HH:mm")),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -139,34 +202,29 @@ fun MedicineCard(
                 }
             }
             
-            // Status Icon
-            medicine.lastStatusUpdate?.let { lastUpdate ->
-                val today = java.time.LocalDate.now()
-                val statusDate = lastUpdate.toLocalDate()
-                
-                if (statusDate == today) {
-                    when (medicine.status) {
-                        MedicineStatus.TAKEN -> Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = "Taken",
-                            tint = Color(0xFF4CAF50)
-                        )
-                        MedicineStatus.SNOOZED -> Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = "Snoozed",
-                            tint = Color(0xFFFFA000)
-                        )
-                        MedicineStatus.SKIPPED -> Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Skipped",
-                            tint = Color(0xFFF44336)
-                        )
-                        MedicineStatus.PENDING -> Icon(
-                            imageVector = Icons.Default.Warning,
-                            contentDescription = "Pending",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+            // Status Icon - Always show status and make it clickable
+            IconButton(onClick = { showStatusDialog = true }) {
+                when (medicine.status) {
+                    MedicineStatus.TAKEN -> Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Taken",
+                        tint = Color(0xFF4CAF50)
+                    )
+                    MedicineStatus.SNOOZED -> Icon(
+                        imageVector = Icons.Default.Notifications,
+                        contentDescription = "Snoozed",
+                        tint = Color(0xFFFFA000)
+                    )
+                    MedicineStatus.SKIPPED -> Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Skipped",
+                        tint = Color(0xFFF44336)
+                    )
+                    MedicineStatus.PENDING -> Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = "Pending",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }

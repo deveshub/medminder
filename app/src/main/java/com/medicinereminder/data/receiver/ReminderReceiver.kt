@@ -14,17 +14,16 @@ import android.provider.Settings
 import android.view.WindowManager
 import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
+import androidx.work.*
 import com.medicinereminder.R
+import com.medicinereminder.data.worker.UpdateMedicineStatusWorker
 import com.medicinereminder.domain.model.MedicineStatus
 import com.medicinereminder.domain.repository.MedicineRepository
 import com.medicinereminder.presentation.MainActivity
 import com.medicinereminder.presentation.medicines.reminder.ReminderFullScreenActivity
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import java.time.LocalDateTime
 import java.util.UUID
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -41,6 +40,7 @@ class ReminderReceiver : BroadcastReceiver() {
         private const val EXTRA_MEDICINE_NAME = "medicineName"
         private const val EXTRA_MEDICINE_ID = "medicineId"
         private const val EXTRA_NOTIFICATION_ID = "notificationId"
+        private const val UPDATE_STATUS_WORK = "update_status_work"
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -56,9 +56,13 @@ class ReminderReceiver : BroadcastReceiver() {
         val currentSnoozeCount = intent.getIntExtra("currentSnoozeCount", 0)
         val customSnoozeMinutes = intent.getIntExtra("customSnoozeMinutes", -1)
 
+        android.util.Log.d("ReminderReceiver", "Received action: ${intent.action} for medicine: $medicineId")
+
         when (intent.action) {
             SNOOZE_ACTION -> {
+                android.util.Log.d("ReminderReceiver", "Processing SNOOZE action")
                 if (currentSnoozeCount < maxSnoozeCount) {
+                    scheduleStatusUpdate(context, medicineId, MedicineStatus.SNOOZED)
                     scheduleSnooze(
                         context,
                         medicineId,
@@ -72,16 +76,19 @@ class ReminderReceiver : BroadcastReceiver() {
                         vibrationEnabled,
                         currentSnoozeCount + 1
                     )
-                    updateMedicineStatus(medicineId, MedicineStatus.SNOOZED)
+                    cancelNotification(context, notificationId)
+                } else {
+                    cancelNotification(context, notificationId)
                 }
-                cancelNotification(context, notificationId)
             }
             TAKE_ACTION -> {
-                updateMedicineStatus(medicineId, MedicineStatus.TAKEN)
+                android.util.Log.d("ReminderReceiver", "Processing TAKE action")
+                scheduleStatusUpdate(context, medicineId, MedicineStatus.TAKEN)
                 cancelNotification(context, notificationId)
             }
             SKIP_ACTION -> {
-                updateMedicineStatus(medicineId, MedicineStatus.SKIPPED)
+                android.util.Log.d("ReminderReceiver", "Processing SKIP action")
+                scheduleStatusUpdate(context, medicineId, MedicineStatus.SKIPPED)
                 cancelNotification(context, notificationId)
             }
             else -> {
@@ -113,22 +120,40 @@ class ReminderReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun updateMedicineStatus(medicineId: String, status: MedicineStatus) {
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val medicine = medicineRepository.getMedicineById(UUID.fromString(medicineId))
-                medicine?.let {
-                    val updatedMedicine = it.copy(
-                        status = status,
-                        lastStatusUpdate = LocalDateTime.now(),
-                        updatedAt = LocalDateTime.now()
-                    )
-                    medicineRepository.updateMedicine(updatedMedicine)
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
+    private fun scheduleStatusUpdate(context: Context, medicineId: String, status: MedicineStatus) {
+        android.util.Log.d("ReminderReceiver", "Scheduling status update for medicine: $medicineId to status: $status")
+        
+        val workData = workDataOf(
+            "medicineId" to medicineId,
+            "status" to status.name
+        )
+
+        val updateStatusWork = OneTimeWorkRequestBuilder<UpdateMedicineStatusWorker>()
+            .setInputData(workData)
+            .setBackoffCriteria(
+                BackoffPolicy.LINEAR,
+                WorkRequest.MIN_BACKOFF_MILLIS,
+                TimeUnit.MILLISECONDS
+            )
+            .build()
+
+        android.util.Log.d("ReminderReceiver", "Created work request with id: ${updateStatusWork.id}")
+
+        WorkManager.getInstance(context)
+            .enqueueUniqueWork(
+                UPDATE_STATUS_WORK + "_" + medicineId,
+                ExistingWorkPolicy.REPLACE,
+                updateStatusWork
+            )
+
+        android.util.Log.d("ReminderReceiver", "Enqueued work request")
+
+        // Observe the work status
+        WorkManager.getInstance(context)
+            .getWorkInfoByIdLiveData(updateStatusWork.id)
+            .observeForever { workInfo ->
+                android.util.Log.d("ReminderReceiver", "Work status update - State: ${workInfo?.state}, Output Data: ${workInfo?.outputData}")
             }
-        }
     }
 
     private fun showNotification(
@@ -189,7 +214,15 @@ class ReminderReceiver : BroadcastReceiver() {
         val takeIntent = Intent(context, ReminderReceiver::class.java).apply {
             action = TAKE_ACTION
             putExtra("medicineId", medicineId)
+            putExtra("medicineName", medicineName)
             putExtra("notificationId", notificationId)
+            putExtra("snoozeRequestCode", snoozeRequestCode)
+            putExtra("isFullScreen", false)
+            putExtra("maxSnoozeCount", maxSnoozeCount)
+            putExtra("snoozeInterval", snoozeInterval)
+            putExtra("soundEnabled", soundEnabled)
+            putExtra("vibrationEnabled", vibrationEnabled)
+            putExtra("currentSnoozeCount", currentSnoozeCount)
         }
 
         val takePendingIntent = PendingIntent.getBroadcast(
@@ -202,7 +235,15 @@ class ReminderReceiver : BroadcastReceiver() {
         val skipIntent = Intent(context, ReminderReceiver::class.java).apply {
             action = SKIP_ACTION
             putExtra("medicineId", medicineId)
+            putExtra("medicineName", medicineName)
             putExtra("notificationId", notificationId)
+            putExtra("snoozeRequestCode", snoozeRequestCode)
+            putExtra("isFullScreen", false)
+            putExtra("maxSnoozeCount", maxSnoozeCount)
+            putExtra("snoozeInterval", snoozeInterval)
+            putExtra("soundEnabled", soundEnabled)
+            putExtra("vibrationEnabled", vibrationEnabled)
+            putExtra("currentSnoozeCount", currentSnoozeCount)
         }
 
         val skipPendingIntent = PendingIntent.getBroadcast(
