@@ -30,8 +30,6 @@ data class MedicineEntity(
     val reminderSoundEnabled: Boolean,
     val reminderVibrationEnabled: Boolean,
     val reminderFullScreenAlert: Boolean,
-    val reminderSnoozeInterval: Int,
-    val reminderMaxSnoozeCount: Int,
     val status: String = MedicineStatus.PENDING.name,
     val lastStatusUpdate: LocalDateTime? = null,
     val createdAt: LocalDateTime,
@@ -57,9 +55,7 @@ data class MedicineEntity(
             enabled = reminderEnabled,
             soundEnabled = reminderSoundEnabled,
             vibrationEnabled = reminderVibrationEnabled,
-            fullScreenAlert = reminderFullScreenAlert,
-            snoozeInterval = reminderSnoozeInterval,
-            maxSnoozeCount = reminderMaxSnoozeCount
+            fullScreenAlert = reminderFullScreenAlert
         ),
         status = MedicineStatus.valueOf(status),
         lastStatusUpdate = lastStatusUpdate,
@@ -84,8 +80,6 @@ data class MedicineEntity(
             reminderSoundEnabled = medicine.reminderSettings.soundEnabled,
             reminderVibrationEnabled = medicine.reminderSettings.vibrationEnabled,
             reminderFullScreenAlert = medicine.reminderSettings.fullScreenAlert,
-            reminderSnoozeInterval = medicine.reminderSettings.snoozeInterval,
-            reminderMaxSnoozeCount = medicine.reminderSettings.maxSnoozeCount,
             status = medicine.status.name,
             lastStatusUpdate = medicine.lastStatusUpdate,
             createdAt = medicine.createdAt,

@@ -53,7 +53,5 @@ data class ReminderSettings(
     val enabled: Boolean = true,
     val soundEnabled: Boolean = true,
     val vibrationEnabled: Boolean = true,
-    val fullScreenAlert: Boolean = false,
-    val snoozeInterval: Int = 10, // in minutes
-    val maxSnoozeCount: Int = 3
+    val fullScreenAlert: Boolean = true
 ) 
