@@ -1,18 +1,19 @@
 package com.medicinereminder.presentation.navigation
 
 import androidx.compose.runtime.Composable
-import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.medicinereminder.presentation.medicines.MedicineListScreen
 import com.medicinereminder.presentation.medicines.add.AddMedicineScreen
 import com.medicinereminder.presentation.medicines.details.MedicineDetailsScreen
-import com.medicinereminder.presentation.medicines.edit.EditMedicineScreen
 
 @Composable
-fun Navigation(navController: NavHostController) {
+fun Navigation() {
+    val navController = rememberNavController()
+
     NavHost(
         navController = navController,
         startDestination = Screen.MedicineList.route
@@ -23,7 +24,7 @@ fun Navigation(navController: NavHostController) {
                     navController.navigate(Screen.AddMedicine.route)
                 },
                 onNavigateToMedicineDetails = { medicineId ->
-                    navController.navigate(Screen.MedicineDetails.createRoute(medicineId))
+                    navController.navigate(Screen.MedicineDetails.route + "/$medicineId")
                 }
             )
         }
@@ -50,7 +51,7 @@ fun Navigation(navController: NavHostController) {
                 },
                 onNavigateToEdit = { medicineId ->
                     // TODO: Navigate to edit screen when implemented
-                    navController.navigate(Screen.EditMedicine.route + "/$medicineId")
+                    // Will be implemented in the next feature
                 }
             )
         }
