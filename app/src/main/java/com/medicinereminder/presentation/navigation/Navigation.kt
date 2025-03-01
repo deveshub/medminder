@@ -8,6 +8,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.medicinereminder.presentation.medicines.MedicineListScreen
 import com.medicinereminder.presentation.medicines.add.AddMedicineScreen
+import com.medicinereminder.presentation.medicines.details.MedicineDetailsScreen
+import com.medicinereminder.presentation.medicines.edit.EditMedicineScreen
 
 @Composable
 fun Navigation(navController: NavHostController) {
@@ -35,14 +37,22 @@ fun Navigation(navController: NavHostController) {
         }
 
         composable(
-            route = Screen.MedicineDetails.route,
+            route = Screen.MedicineDetails.route + "/{medicineId}",
             arguments = listOf(
                 navArgument("medicineId") {
                     type = NavType.StringType
                 }
             )
         ) {
-            // TODO: Implement MedicineDetailsScreen
+            MedicineDetailsScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onNavigateToEdit = { medicineId ->
+                    // TODO: Navigate to edit screen when implemented
+                    navController.navigate(Screen.EditMedicine.route + "/$medicineId")
+                }
+            )
         }
     }
 }
