@@ -2,6 +2,7 @@ package com.medicinereminder.presentation.medicines.add
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.medicinereminder.data.manager.ReminderManager
 import com.medicinereminder.domain.model.Dosage
 import com.medicinereminder.domain.model.Medicine
 import com.medicinereminder.domain.model.ReminderSettings
@@ -12,12 +13,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDateTime
 import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
 class AddMedicineViewModel @Inject constructor(
-    private val addMedicineUseCase: AddMedicineUseCase
+    private val addMedicineUseCase: AddMedicineUseCase,
+    private val reminderManager: ReminderManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AddMedicineState())
@@ -165,6 +168,9 @@ class AddMedicineViewModel @Inject constructor(
             _state.update { it.copy(isLoading = true, error = null) }
             try {
                 addMedicineUseCase(medicine)
+                if (medicine.reminderSettings.enabled) {
+                    scheduleReminders(medicine)
+                }
                 _state.update { it.copy(isLoading = false, isSuccess = true) }
             } catch (e: Exception) {
                 _state.update { 
@@ -172,6 +178,41 @@ class AddMedicineViewModel @Inject constructor(
                         isLoading = false,
                         error = e.message ?: "Failed to save medicine"
                     )
+                }
+            }
+        }
+    }
+
+    private fun scheduleReminders(medicine: Medicine) {
+        val now = LocalDateTime.now()
+        val times = medicine.schedule.times
+        val startDate = medicine.startDate.toLocalDate()
+        val endDate = medicine.endDate?.toLocalDate()
+
+        // Schedule reminders for each time
+        times.forEach { time ->
+            var reminderDateTime = LocalDateTime.of(
+                startDate,
+                time.toLocalTime()
+            )
+
+            // If the reminder time is in the past, schedule it for the next occurrence
+            if (reminderDateTime.isBefore(now)) {
+                reminderDateTime = reminderDateTime.plusDays(1)
+            }
+
+            // Check if the reminder is within the end date (if set)
+            if (endDate == null || !reminderDateTime.toLocalDate().isAfter(endDate)) {
+                // For weekly frequency, check if the day is selected
+                if (medicine.schedule.frequency == com.medicinereminder.domain.model.Frequency.WEEKLY) {
+                    val dayOfWeek = reminderDateTime.dayOfWeek
+                    val selectedDays = medicine.schedule.daysOfWeek
+                    if (selectedDays?.any { it.ordinal + 1 == dayOfWeek.value } == true) {
+                        reminderManager.scheduleReminder(medicine, reminderDateTime)
+                    }
+                } else {
+                    // For daily frequency, schedule all reminders
+                    reminderManager.scheduleReminder(medicine, reminderDateTime)
                 }
             }
         }
