@@ -15,3 +15,8 @@ app/schemas/
 
 # Heap dumps
 *.hprof
+
+# Keystores
+*.keystore
+*.jks
+medminder.keystore
