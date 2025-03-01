@@ -3,6 +3,13 @@ package com.medicinereminder.domain.model
 import java.time.LocalDateTime
 import java.util.UUID
 
+enum class MedicineStatus {
+    PENDING,  // Default status when medicine is due
+    TAKEN,    // Medicine was taken
+    SNOOZED,  // Medicine was snoozed
+    SKIPPED   // Medicine was skipped
+}
+
 data class Medicine(
     val id: UUID = UUID.randomUUID(),
     val name: String,
@@ -12,6 +19,8 @@ data class Medicine(
     val startDate: LocalDateTime,
     val endDate: LocalDateTime?,
     val reminderSettings: ReminderSettings,
+    val status: MedicineStatus = MedicineStatus.PENDING,
+    val lastStatusUpdate: LocalDateTime? = null,
     val createdAt: LocalDateTime = LocalDateTime.now(),
     val updatedAt: LocalDateTime = LocalDateTime.now()
 )

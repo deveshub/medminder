@@ -15,10 +15,23 @@ import android.view.WindowManager
 import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
 import com.medicinereminder.R
+import com.medicinereminder.domain.model.MedicineStatus
+import com.medicinereminder.domain.repository.MedicineRepository
 import com.medicinereminder.presentation.MainActivity
 import com.medicinereminder.presentation.medicines.reminder.ReminderFullScreenActivity
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import java.time.LocalDateTime
+import java.util.UUID
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class ReminderReceiver : BroadcastReceiver() {
+
+    @Inject
+    lateinit var medicineRepository: MedicineRepository
 
     companion object {
         private const val CHANNEL_ID = "medicine_reminders"
@@ -59,15 +72,16 @@ class ReminderReceiver : BroadcastReceiver() {
                         vibrationEnabled,
                         currentSnoozeCount + 1
                     )
+                    updateMedicineStatus(medicineId, MedicineStatus.SNOOZED)
                 }
                 cancelNotification(context, notificationId)
             }
             TAKE_ACTION -> {
-                // TODO: Mark medicine as taken
+                updateMedicineStatus(medicineId, MedicineStatus.TAKEN)
                 cancelNotification(context, notificationId)
             }
             SKIP_ACTION -> {
-                // TODO: Mark medicine as skipped
+                updateMedicineStatus(medicineId, MedicineStatus.SKIPPED)
                 cancelNotification(context, notificationId)
             }
             else -> {
@@ -95,6 +109,24 @@ class ReminderReceiver : BroadcastReceiver() {
                 if (soundEnabled) {
                     playSound(context)
                 }
+            }
+        }
+    }
+
+    private fun updateMedicineStatus(medicineId: String, status: MedicineStatus) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val medicine = medicineRepository.getMedicineById(UUID.fromString(medicineId))
+                medicine?.let {
+                    val updatedMedicine = it.copy(
+                        status = status,
+                        lastStatusUpdate = LocalDateTime.now(),
+                        updatedAt = LocalDateTime.now()
+                    )
+                    medicineRepository.updateMedicine(updatedMedicine)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }

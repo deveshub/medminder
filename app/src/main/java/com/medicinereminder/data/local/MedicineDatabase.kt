@@ -8,7 +8,7 @@ import com.medicinereminder.data.local.entity.MedicineEntity
 
 @Database(
     entities = [MedicineEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = true
 )
 @TypeConverters(Converters::class)

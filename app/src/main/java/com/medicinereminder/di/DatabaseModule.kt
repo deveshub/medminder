@@ -2,6 +2,8 @@ package com.medicinereminder.di
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.medicinereminder.data.local.MedicineDatabase
 import com.medicinereminder.data.local.dao.MedicineDao
 import com.medicinereminder.data.repository.MedicineRepositoryImpl
@@ -17,6 +19,19 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
 
+    private val MIGRATION_1_2 = object : Migration(1, 2) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL("""
+                ALTER TABLE medicines 
+                ADD COLUMN status TEXT NOT NULL DEFAULT 'PENDING'
+            """)
+            database.execSQL("""
+                ALTER TABLE medicines 
+                ADD COLUMN lastStatusUpdate INTEGER DEFAULT NULL
+            """)
+        }
+    }
+
     @Provides
     @Singleton
     fun provideMedicineDatabase(
@@ -26,7 +41,9 @@ object DatabaseModule {
             context,
             MedicineDatabase::class.java,
             MedicineDatabase.DATABASE_NAME
-        ).build()
+        )
+        .addMigrations(MIGRATION_1_2)
+        .build()
     }
 
     @Provides

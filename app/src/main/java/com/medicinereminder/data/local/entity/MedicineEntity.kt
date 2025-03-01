@@ -1,12 +1,18 @@
 package com.medicinereminder.data.local.entity
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.medicinereminder.domain.model.*
 import java.time.LocalDateTime
 import java.util.UUID
 
-@Entity(tableName = "medicines")
+@Entity(
+    tableName = "medicines",
+    indices = [
+        Index(value = ["status"])
+    ]
+)
 data class MedicineEntity(
     @PrimaryKey
     val id: String,
@@ -26,6 +32,8 @@ data class MedicineEntity(
     val reminderFullScreenAlert: Boolean,
     val reminderSnoozeInterval: Int,
     val reminderMaxSnoozeCount: Int,
+    val status: String = MedicineStatus.PENDING.name,
+    val lastStatusUpdate: LocalDateTime? = null,
     val createdAt: LocalDateTime,
     val updatedAt: LocalDateTime
 ) {
@@ -53,6 +61,8 @@ data class MedicineEntity(
             snoozeInterval = reminderSnoozeInterval,
             maxSnoozeCount = reminderMaxSnoozeCount
         ),
+        status = MedicineStatus.valueOf(status),
+        lastStatusUpdate = lastStatusUpdate,
         createdAt = createdAt,
         updatedAt = updatedAt
     )
@@ -76,6 +86,8 @@ data class MedicineEntity(
             reminderFullScreenAlert = medicine.reminderSettings.fullScreenAlert,
             reminderSnoozeInterval = medicine.reminderSettings.snoozeInterval,
             reminderMaxSnoozeCount = medicine.reminderSettings.maxSnoozeCount,
+            status = medicine.status.name,
+            lastStatusUpdate = medicine.lastStatusUpdate,
             createdAt = medicine.createdAt,
             updatedAt = medicine.updatedAt
         )
