@@ -16,8 +16,7 @@ fun TimePickerDialog(
     onDismissRequest: () -> Unit,
     onTimeSelected: (LocalTime) -> Unit
 ) {
-    var hour by remember { mutableStateOf(12) }
-    var minute by remember { mutableStateOf(0) }
+    var timePickerState = rememberTimePickerState()
 
     Dialog(
         onDismissRequest = onDismissRequest
@@ -35,10 +34,7 @@ fun TimePickerDialog(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 TimePicker(
-                    state = rememberTimePickerState(
-                        initialHour = hour,
-                        initialMinute = minute
-                    ),
+                    state = timePickerState,
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -54,7 +50,12 @@ fun TimePickerDialog(
                     Spacer(modifier = Modifier.width(8.dp))
                     TextButton(
                         onClick = {
-                            onTimeSelected(LocalTime.of(hour, minute))
+                            onTimeSelected(
+                                LocalTime.of(
+                                    timePickerState.hour,
+                                    timePickerState.minute
+                                )
+                            )
                             onDismissRequest()
                         }
                     ) {
