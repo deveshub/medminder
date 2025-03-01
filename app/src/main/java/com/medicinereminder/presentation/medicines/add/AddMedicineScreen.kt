@@ -43,6 +43,12 @@ fun AddMedicineScreen(
         }
     }
 
+    LaunchedEffect(state.isSuccess) {
+        if (state.isSuccess) {
+            onNavigateBack()
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(

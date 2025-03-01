@@ -165,7 +165,7 @@ class AddMedicineViewModel @Inject constructor(
             _state.update { it.copy(isLoading = true, error = null) }
             try {
                 addMedicineUseCase(medicine)
-                _state.update { it.copy(isLoading = false) }
+                _state.update { it.copy(isLoading = false, isSuccess = true) }
             } catch (e: Exception) {
                 _state.update { 
                     it.copy(
