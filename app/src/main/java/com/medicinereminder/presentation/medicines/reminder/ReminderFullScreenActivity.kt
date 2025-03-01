@@ -73,7 +73,15 @@ class ReminderFullScreenActivity : ComponentActivity() {
                         val intent = Intent(this, ReminderReceiver::class.java).apply {
                             action = "com.medicinereminder.TAKE"
                             putExtra("medicineId", medicineId)
+                            putExtra("medicineName", medicineName)
                             putExtra("notificationId", notificationId)
+                            putExtra("snoozeRequestCode", snoozeRequestCode)
+                            putExtra("isFullScreen", true)
+                            putExtra("maxSnoozeCount", maxSnoozeCount)
+                            putExtra("snoozeInterval", snoozeInterval)
+                            putExtra("soundEnabled", soundEnabled)
+                            putExtra("vibrationEnabled", vibrationEnabled)
+                            putExtra("currentSnoozeCount", currentSnoozeCount)
                         }
                         sendBroadcast(intent)
                         finish()
@@ -82,7 +90,15 @@ class ReminderFullScreenActivity : ComponentActivity() {
                         val intent = Intent(this, ReminderReceiver::class.java).apply {
                             action = "com.medicinereminder.SKIP"
                             putExtra("medicineId", medicineId)
+                            putExtra("medicineName", medicineName)
                             putExtra("notificationId", notificationId)
+                            putExtra("snoozeRequestCode", snoozeRequestCode)
+                            putExtra("isFullScreen", true)
+                            putExtra("maxSnoozeCount", maxSnoozeCount)
+                            putExtra("snoozeInterval", snoozeInterval)
+                            putExtra("soundEnabled", soundEnabled)
+                            putExtra("vibrationEnabled", vibrationEnabled)
+                            putExtra("currentSnoozeCount", currentSnoozeCount)
                         }
                         sendBroadcast(intent)
                         finish()
